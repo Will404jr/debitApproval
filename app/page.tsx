@@ -1,10 +1,92 @@
-import { IssuesTable } from "@/components/home-table";
+"use client";
 
-export default function HomePage() {
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import Image from "next/image";
+import Logo from "@/public/imgs/logo.png";
+import Marketing from "@/public/imgs/marketing.jpeg";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+
+const LoginPage = () => {
+  const [username, setUsername] = useState("");
+  const router = useRouter();
+
+  const handleLogin = async () => {
+    try {
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.personnelType === "Md") {
+          router.push("/MD/home");
+        } else if (data.personnelType === "Staff") {
+          router.push("/staff/home");
+        }
+      } else {
+        console.error("Login failed");
+        // You might want to show an error message to the user here
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+    }
+  };
+
   return (
-    <main className="container mx-auto px-4 py-8 w-[90%]">
-      {/* <h1 className="text-3xl font-bold mb-6">Issues Dashboard</h1> */}
-      <IssuesTable />
-    </main>
+    <div className="min-h-screen flex">
+      {/* Left side - Marketing Section */}
+      <div className="hidden lg:block lg:w-1/2 relative">
+        <Image
+          src={Marketing || "/placeholder.svg"}
+          alt="marketing image"
+          className="object-cover"
+          fill
+          priority
+          sizes="50vw"
+        />
+      </div>
+
+      {/* Right side - Authentication Section */}
+      <div className="w-full lg:w-1/2 bg-blue-900 p-8 flex items-center justify-center">
+        <Card className="w-full max-w-md p-8 shadow-lg">
+          <CardContent>
+            <div className="flex justify-center mb-12">
+              <Image
+                src={Logo || "/placeholder.svg"}
+                alt="nssf logo"
+                height={100}
+                priority
+              />
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              <Button
+                className="w-full py-3.5 px-4 bg-green-500 text-white rounded-lg
+                          font-medium shadow-sm hover:bg-green-600
+                          transition-colors duration-200"
+                onClick={handleLogin}
+              >
+                Authenticate
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
-}
+};
+
+export default LoginPage;

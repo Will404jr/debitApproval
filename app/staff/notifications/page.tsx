@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,13 +10,11 @@ import {
   Settings,
   FileText,
   AlertCircle,
-  Check,
-  X,
   ChevronRight,
 } from "lucide-react";
 
 const NotificationsPanel = () => {
-  const notifications = [
+  const [notifications, setNotifications] = useState([
     {
       id: 1,
       type: "message",
@@ -51,16 +51,46 @@ const NotificationsPanel = () => {
       unread: false,
       icon: Settings,
     },
-  ];
+  ]);
+
+  const markAllAsRead = () => {
+    setNotifications(
+      notifications.map((notification) => ({
+        ...notification,
+        unread: false,
+      }))
+    );
+  };
+
+  const markAsRead = (notificationId: number) => {
+    setNotifications(
+      notifications.map((notification) =>
+        notification.id === notificationId
+          ? { ...notification, unread: false }
+          : notification
+      )
+    );
+  };
+
+  const unreadCount = notifications.filter(
+    (notification) => notification.unread
+  ).length;
 
   return (
-    <div className="max-w-md mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6">
       <Card className="bg-white shadow-lg">
         <CardHeader className="border-b">
           <div className="w-full bg-gradient-to-r from-blue-600 to-green-400 h-1 absolute top-0 left-0 right-0" />
           <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Bell className="h-6 w-6 text-blue-600" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
               <h2 className="text-xl font-semibold">Notifications</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -68,6 +98,8 @@ const NotificationsPanel = () => {
                 variant="ghost"
                 size="sm"
                 className="text-gray-500 hover:text-blue-600"
+                onClick={markAllAsRead}
+                disabled={unreadCount === 0}
               >
                 Mark all as read
               </Button>
@@ -105,32 +137,44 @@ const NotificationsPanel = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p
-                          className={`font-medium ${
-                            notification.unread
-                              ? "text-blue-600"
-                              : "text-gray-900"
-                          }`}
-                        >
-                          {notification.title}
-                        </p>
-                        <span className="text-xs text-gray-500 whitespace-nowrap">
-                          {notification.time}
-                        </span>
+                        <div className="flex-1">
+                          <p
+                            className={`font-medium ${
+                              notification.unread
+                                ? "text-blue-600"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {notification.title}
+                          </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {notification.content}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                            {notification.time}
+                          </span>
+                          {notification.unread && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-gray-400 hover:text-blue-600 h-6 px-2"
+                              onClick={() => markAsRead(notification.id)}
+                            >
+                              Mark as read
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {notification.content}
-                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-blue-600"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-gray-400 hover:text-blue-600 ml-2"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -139,7 +183,13 @@ const NotificationsPanel = () => {
         </ScrollArea>
 
         <div className="p-3 border-t bg-gray-50 flex justify-between items-center">
-          <span className="text-sm text-gray-500">Showing 4 notifications</span>
+          <span className="text-sm text-gray-500">
+            {unreadCount === 0
+              ? "No unread notifications"
+              : `${unreadCount} unread notification${
+                  unreadCount === 1 ? "" : "s"
+                }`}
+          </span>
           <Button
             variant="outline"
             size="sm"

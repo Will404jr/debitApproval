@@ -2,7 +2,7 @@ export type Issue = {
   id: string;
   subject: string;
   category: "Technical" | "Finance" | "Environment";
-  status: "Urgent" | "Open" | "Closed";
+  status: "Urgent" | "Open" | "Closed" | "Overdue";
   assignedTo: string;
   dueDate: string;
 };
