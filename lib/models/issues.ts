@@ -7,7 +7,7 @@ const issueSchema = new mongoose.Schema(
     content: { type: String, required: true },
     status: {
       type: String,
-      enum: ["Open", "Closed", "Pending", "Overdue"],
+      enum: ["Open", "Closed", "Pending", "Overdue", "Urgent"],
       default: "Open",
       required: true,
     },

@@ -24,15 +24,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { MoreVertical, ClipboardList } from "lucide-react";
 
 interface Issue {
   _id: string;
@@ -53,21 +59,28 @@ export default function IssuesTable() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedIssue, setSelectedIssue] = React.useState<Issue | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [session, setSession] = React.useState<any>(null);
   const itemsPerPage = 10;
 
-  // Fetch issues
+  // Fetch issues and session
   React.useEffect(() => {
-    const fetchIssues = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/issues");
-        if (!response.ok) throw new Error("Failed to fetch");
-        const data = await response.json();
-        setIssues(data);
+        const [issuesResponse, sessionResponse] = await Promise.all([
+          fetch("/api/issues"),
+          fetch("/api/session"),
+        ]);
+        if (!issuesResponse.ok || !sessionResponse.ok)
+          throw new Error("Failed to fetch");
+        const issuesData = await issuesResponse.json();
+        const sessionData = await sessionResponse.json();
+        setIssues(issuesData);
+        setSession(sessionData);
       } catch (error) {
-        console.error("Error fetching issues:", error);
+        console.error("Error fetching data:", error);
       }
     };
-    fetchIssues();
+    fetchData();
   }, []);
 
   // Filter issues based on search query and status
@@ -92,6 +105,30 @@ export default function IssuesTable() {
   // Format date for display
   const formatDate = (dateString: string | number | Date) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Handle resolving an issue
+  const handleResolve = async (issueId: string) => {
+    try {
+      const response = await fetch(`/api/issues/${issueId}/resolve`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: "Closed" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to resolve issue");
+      }
+
+      const updatedIssue = await response.json();
+      setIssues(
+        issues.map((issue) => (issue._id === issueId ? updatedIssue : issue))
+      );
+    } catch (error) {
+      console.error("Error resolving issue:", error);
+    }
   };
 
   return (
@@ -155,15 +192,30 @@ export default function IssuesTable() {
                 <TableCell>{issue.assignedTo || "Unassigned"}</TableCell>
                 <TableCell>{formatDate(issue.dueDate)}</TableCell>
                 <TableCell>
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => {
-                      setSelectedIssue(issue);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    Details
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger>
+                      <MoreVertical className="h-5 w-5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedIssue(issue);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <ClipboardList className="mr-2 h-4 w-4" />
+                        Details
+                      </DropdownMenuItem>
+                      {session?.username === issue.assignedTo &&
+                        issue.status !== "Closed" && (
+                          <DropdownMenuItem
+                            onClick={() => handleResolve(issue._id)}
+                          >
+                            Resolve
+                          </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
