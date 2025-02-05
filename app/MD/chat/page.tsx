@@ -1,105 +1,125 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Plus, Image, Search } from "lucide-react";
+import Pusher from "pusher-js";
+import { type User, users } from "@/lib/user";
+// import { getSession } from "@/lib/session"
 
 const ChatInterface = () => {
   const [message, setMessage] = useState("");
-  const [selectedContact, setSelectedContact] = useState(1);
+  const [selectedContact, setSelectedContact] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const contacts = [
-    {
-      id: 1,
-      name: "John Doe",
-      avatar: "JD",
-      lastMessage: "Could you share some screenshots?",
-      timestamp: "09:33 AM",
-      unread: 2,
-      status: "online",
-    },
-    {
-      id: 2,
-      name: "Sarah Smith",
-      avatar: "SS",
-      lastMessage: "The presentation looks great!",
-      timestamp: "09:15 AM",
-      unread: 0,
-      status: "offline",
-    },
-    {
-      id: 3,
-      name: "Mike Johnson",
-      avatar: "MJ",
-      lastMessage: "Let's schedule a meeting",
-      timestamp: "Yesterday",
-      unread: 1,
-      status: "online",
-    },
-    {
-      id: 4,
-      name: "Emily Brown",
-      avatar: "EB",
-      lastMessage: "Thanks for your help!",
-      timestamp: "Yesterday",
-      unread: 0,
-      status: "offline",
-    },
-  ];
-
-  // Sample messages for demonstration
-  const messages: {
-    [key: number]: Array<{
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [messages, setMessages] = useState<{
+    [key: string]: Array<{
       id: number;
       sender: string;
       content: string;
       timestamp: string;
       isSent: boolean;
     }>;
-  } = {
-    1: [
-      {
-        id: 1,
-        sender: "John Doe",
-        content: "Hey, how's the new project coming along?",
-        timestamp: "09:30 AM",
-        isSent: false,
-      },
-      {
-        id: 2,
-        sender: "You",
-        content:
-          "Making good progress! Just finished the initial design phase.",
-        timestamp: "09:32 AM",
-        isSent: true,
-      },
-      {
-        id: 3,
-        sender: "John Doe",
-        content:
-          "That's great to hear! Could you share some screenshots of what you've done so far?",
-        timestamp: "09:33 AM",
-        isSent: false,
-      },
-    ],
-  };
+  }>({});
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const fetchSession = async () => {
+      const response = await fetch("/api/session");
+      const session = await response.json();
+      if (session.isLoggedIn && session.username) {
+        const user = users.find((u) => u.username === session.username);
+        if (user) {
+          setCurrentUser(user);
+        }
+      }
+    };
+    fetchSession();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      authEndpoint: "/api/pusher/auth", // Add this line
+    });
+
+    const channel = pusher.subscribe(`private-user-${currentUser.id}`);
+    channel.bind("new-message", (data: { sender: User; message: string }) => {
+      setMessages((prevMessages) => ({
+        ...prevMessages,
+        [data.sender.id]: [
+          ...(prevMessages[data.sender.id] || []),
+          {
+            id: Date.now(),
+            sender: data.sender.username,
+            content: data.message,
+            timestamp: new Date().toLocaleTimeString(),
+            isSent: false,
+          },
+        ],
+      }));
+    });
+
+    return () => {
+      pusher.unsubscribe(`private-user-${currentUser.id}`);
+    };
+  }, [currentUser]);
+
+  const filteredContacts = users.filter(
+    (user) =>
+      user.id !== currentUser?.id &&
+      (currentUser?.personnelType === "Md" || user.personnelType === "Md") &&
+      user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSend = () => {
-    if (message.trim()) {
-      console.log("Sending message:", message);
-      setMessage("");
+  const handleSend = async () => {
+    if (message.trim() && selectedContact && currentUser) {
+      const newMessage = {
+        id: Date.now(),
+        sender: currentUser.username,
+        content: message,
+        timestamp: new Date().toLocaleTimeString(),
+        isSent: true,
+      };
+
+      setMessages((prevMessages) => ({
+        ...prevMessages,
+        [selectedContact.id]: [
+          ...(prevMessages[selectedContact.id] || []),
+          newMessage,
+        ],
+      }));
+
+      // Send message to server
+      try {
+        const response = await fetch("/api/send-message", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            senderId: currentUser.id,
+            recipientId: selectedContact.id,
+            message: message,
+            sessionUsername: currentUser.username, // Include the session username
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to send message");
+        }
+
+        setMessage("");
+      } catch (error) {
+        console.error("Error sending message:", error);
+        // You might want to show an error message to the user here
+      }
     }
   };
-
-  const selectedContactData = contacts.find((c) => c.id === selectedContact);
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -127,39 +147,24 @@ const ChatInterface = () => {
                   <div
                     key={contact.id}
                     className={`p-4 hover:bg-gray-50 cursor-pointer ${
-                      selectedContact === contact.id ? "bg-gray-50" : ""
+                      selectedContact?.id === contact.id ? "bg-gray-50" : ""
                     }`}
-                    onClick={() => setSelectedContact(contact.id)}
+                    onClick={() => setSelectedContact(contact)}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold">
-                            {contact.avatar}
-                          </span>
-                        </div>
-                        {contact.status === "online" && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-                        )}
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold">
+                          {contact.username.substring(0, 2).toUpperCase()}
+                        </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold truncate">
-                            {contact.name}
-                          </h3>
-                          <span className="text-xs text-gray-500">
-                            {contact.timestamp}
-                          </span>
-                        </div>
+                        <h3 className="font-semibold truncate">
+                          {contact.username}
+                        </h3>
                         <p className="text-sm text-gray-500 truncate">
-                          {contact.lastMessage}
+                          {contact.personnelType}
                         </p>
                       </div>
-                      {contact.unread > 0 && (
-                        <div className="ml-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                          {contact.unread}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -170,50 +175,51 @@ const ChatInterface = () => {
           {/* Chat Area */}
           <div className="flex-1 flex flex-col">
             {/* Chat Header */}
-            <div className="p-4 border-b flex items-center gap-3 bg-white">
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-blue-600 font-semibold">
-                  {selectedContactData?.avatar}
-                </span>
+            {selectedContact && (
+              <div className="p-4 border-b flex items-center gap-3 bg-white">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-blue-600 font-semibold">
+                    {selectedContact.username.substring(0, 2).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="font-semibold">{selectedContact.username}</h2>
+                  <span className="text-xs text-gray-500">
+                    {selectedContact.personnelType}
+                  </span>
+                </div>
               </div>
-              <div>
-                <h2 className="font-semibold">{selectedContactData?.name}</h2>
-                <span className="text-xs text-gray-500">
-                  {selectedContactData?.status === "online"
-                    ? "Online"
-                    : "Offline"}
-                </span>
-              </div>
-            </div>
+            )}
 
             {/* Messages Area */}
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
-                {messages[selectedContact]?.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.isSent ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                {selectedContact &&
+                  messages[selectedContact.id]?.map((msg) => (
                     <div
-                      className={`max-w-[80%] ${
-                        msg.isSent
-                          ? "bg-blue-500 text-white rounded-t-2xl rounded-l-2xl"
-                          : "bg-gray-100 text-gray-800 rounded-t-2xl rounded-r-2xl"
-                      } p-3 shadow-sm`}
+                      key={msg.id}
+                      className={`flex ${
+                        msg.isSent ? "justify-end" : "justify-start"
+                      }`}
                     >
-                      <p className="text-sm">{msg.content}</p>
-                      <span
-                        className={`text-xs mt-1 block ${
-                          msg.isSent ? "text-blue-100" : "text-gray-500"
-                        }`}
+                      <div
+                        className={`max-w-[80%] ${
+                          msg.isSent
+                            ? "bg-blue-500 text-white rounded-t-2xl rounded-l-2xl"
+                            : "bg-gray-100 text-gray-800 rounded-t-2xl rounded-r-2xl"
+                        } p-3 shadow-sm`}
                       >
-                        {msg.timestamp}
-                      </span>
+                        <p className="text-sm">{msg.content}</p>
+                        <span
+                          className={`text-xs mt-1 block ${
+                            msg.isSent ? "text-blue-100" : "text-gray-500"
+                          }`}
+                        >
+                          {msg.timestamp}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </ScrollArea>
 

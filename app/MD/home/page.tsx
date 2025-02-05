@@ -41,7 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandInput, CommandList, CommandItem } from "cmdk";
 import { MoreVertical, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { users } from "@/lib/models/user";
+import { users } from "@/lib/user";
 
 interface User {
   id: string;

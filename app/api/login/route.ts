@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { type User, users } from "@/lib/models/user"; // Import both User type and users array
+import { type User, users } from "@/lib/user"; // Import both User type and users array
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
