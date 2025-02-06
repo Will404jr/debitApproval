@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Plus, Image, Search } from "lucide-react";
 import Pusher from "pusher-js";
 import { type User, users } from "@/lib/user";
-// import { getSession } from "@/lib/session"
+import { useRouter } from "next/navigation";
 
 const ChatInterface = () => {
   const [message, setMessage] = useState("");
@@ -24,6 +24,7 @@ const ChatInterface = () => {
       isSent: boolean;
     }>;
   }>({});
+  const router = useRouter();
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -34,17 +35,47 @@ const ChatInterface = () => {
         if (user) {
           setCurrentUser(user);
         }
+      } else {
+        // Redirect to login page if not logged in
+        router.push("/login");
       }
     };
     fetchSession();
   }, []);
 
   useEffect(() => {
+    const fetchMessages = async () => {
+      if (currentUser && selectedContact) {
+        const response = await fetch(
+          `/api/get-messages?userId=${currentUser.id}&otherUserId=${selectedContact.id}`
+        );
+        if (response.ok) {
+          const fetchedMessages = await response.json();
+          setMessages((prevMessages) => ({
+            ...prevMessages,
+            [selectedContact.id]: fetchedMessages.map((msg: any) => ({
+              id: msg._id,
+              sender:
+                msg.senderId === currentUser.id
+                  ? currentUser.username
+                  : selectedContact.username,
+              content: msg.message,
+              timestamp: new Date(msg.timestamp).toLocaleTimeString(),
+              isSent: msg.senderId === currentUser.id,
+            })),
+          }));
+        }
+      }
+    };
+    fetchMessages();
+  }, [currentUser, selectedContact]);
+
+  useEffect(() => {
     if (!currentUser) return;
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
-      authEndpoint: "/api/pusher/auth", // Add this line
+      authEndpoint: "/api/pusher/auth",
     });
 
     const channel = pusher.subscribe(`private-user-${currentUser.id}`);
@@ -79,39 +110,38 @@ const ChatInterface = () => {
   const handleSend = async () => {
     if (message.trim() && selectedContact && currentUser) {
       const newMessage = {
-        id: Date.now(),
-        sender: currentUser.username,
-        content: message,
-        timestamp: new Date().toLocaleTimeString(),
-        isSent: true,
+        senderId: currentUser.id,
+        recipientId: selectedContact.id,
+        message: message,
+        timestamp: new Date().toISOString(),
       };
 
-      setMessages((prevMessages) => ({
-        ...prevMessages,
-        [selectedContact.id]: [
-          ...(prevMessages[selectedContact.id] || []),
-          newMessage,
-        ],
-      }));
-
-      // Send message to server
       try {
         const response = await fetch("/api/send-message", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            senderId: currentUser.id,
-            recipientId: selectedContact.id,
-            message: message,
-            sessionUsername: currentUser.username, // Include the session username
-          }),
+          body: JSON.stringify(newMessage),
         });
 
         if (!response.ok) {
           throw new Error("Failed to send message");
         }
+
+        setMessages((prevMessages) => ({
+          ...prevMessages,
+          [selectedContact.id]: [
+            ...(prevMessages[selectedContact.id] || []),
+            {
+              id: Date.now(),
+              sender: currentUser.username,
+              content: message,
+              timestamp: new Date().toLocaleTimeString(),
+              isSent: true,
+            },
+          ],
+        }));
 
         setMessage("");
       } catch (error) {
