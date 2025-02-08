@@ -1,16 +1,7 @@
-// app/MD/analysis/page.tsx
 "use client";
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import {
   Activity,
   CheckCircle,
@@ -19,6 +10,69 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import dynamic from "next/dynamic";
+
+// Create a wrapper component for the chart to handle dynamic imports
+const Chart = dynamic(
+  () =>
+    import("recharts").then((mod) => {
+      const {
+        BarChart,
+        Bar,
+        XAxis,
+        CartesianGrid,
+        Tooltip,
+        Legend,
+        ResponsiveContainer,
+      } = mod;
+
+      return function Chart({ data }: { data: MonthlyData[] }) {
+        return (
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={data}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 0,
+                  bottom: 60,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="monthLabel"
+                  angle={-45}
+                  textAnchor="end"
+                  height={60}
+                  interval={0}
+                  tick={{
+                    fill: "#6b7280",
+                    fontSize: 12,
+                  }}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar
+                  name="Total Issues"
+                  dataKey="totalIssues"
+                  fill="#3b82f6"
+                  barSize={20}
+                />
+                <Bar
+                  name="Closed Issues"
+                  dataKey="closedIssues"
+                  fill="#22c55e"
+                  barSize={20}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      };
+    }),
+  { ssr: false }
+);
 
 interface Issue {
   _id: string;
@@ -35,7 +89,8 @@ interface Issue {
 interface MonthlyData {
   month: string;
   monthLabel: string;
-  issues: number;
+  totalIssues: number;
+  closedIssues: number;
 }
 
 interface StatusCard {
@@ -73,8 +128,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white p-4 shadow-lg rounded-lg border">
-        <p className="font-medium">{payload[0].payload.monthLabel}</p>
-        <p className="text-blue-600">{payload[0].value} Issues</p>
+        <p className="font-medium">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={index} style={{ color: entry.color }} className="font-medium">
+            {entry.name}: {entry.value} Issues
+          </p>
+        ))}
       </div>
     );
   }
@@ -106,7 +165,7 @@ export default function AnalysisPage() {
   }, []);
 
   const processMonthlyData = (data: Issue[]): MonthlyData[] => {
-    const months: Record<string, number> = {};
+    const months: Record<string, { total: number; closed: number }> = {};
     const monthNames = [
       "Jan",
       "Feb",
@@ -129,18 +188,22 @@ export default function AnalysisPage() {
       ).padStart(2, "0")}`;
 
       if (!months[monthKey]) {
-        months[monthKey] = 0;
+        months[monthKey] = { total: 0, closed: 0 };
       }
-      months[monthKey]++;
+      months[monthKey].total++;
+      if (issue.status === "Closed") {
+        months[monthKey].closed++;
+      }
     });
 
     return Object.entries(months)
-      .map(([month, count]) => {
+      .map(([month, counts]) => {
         const [year, monthNum] = month.split("-");
         return {
           month: month,
           monthLabel: `${monthNames[parseInt(monthNum) - 1]} ${year}`,
-          issues: count,
+          totalIssues: counts.total,
+          closedIssues: counts.closed,
         };
       })
       .sort((a, b) => a.month.localeCompare(b.month));
@@ -231,52 +294,7 @@ export default function AnalysisPage() {
           <CardTitle>Issue Trends</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={monthlyData}
-                margin={{
-                  top: 20,
-                  right: 30,
-                  left: 0,
-                  bottom: 60,
-                }}
-              >
-                <defs>
-                  <linearGradient
-                    id="issueGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="monthLabel"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  interval={0}
-                  tick={{
-                    fill: "#6b7280",
-                    fontSize: 12,
-                  }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="issues"
-                  stroke="#2563eb"
-                  fill="url(#issueGradient)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <Chart data={monthlyData} />
         </CardContent>
       </Card>
     </div>

@@ -65,6 +65,7 @@ export async function POST(req: Request) {
     senderId,
     recipientId,
     message: messageContent,
+    read: false, // Ensure new messages are marked as unread
   });
 
   try {

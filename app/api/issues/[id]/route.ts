@@ -5,11 +5,11 @@ import dbConnect from "@/lib/db";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await context.params;
   try {
     await dbConnect();
-    const id = params.id;
     const body = await request.json();
 
     const updatedIssue = await Issue.findByIdAndUpdate(id, body, {
@@ -36,11 +36,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await context.params;
   try {
     await dbConnect();
-    const id = params.id;
 
     const deletedIssue = await Issue.findByIdAndDelete(id);
 

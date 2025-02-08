@@ -54,8 +54,8 @@ const LoginPage = () => {
       </div>
 
       {/* Right side - Authentication Section */}
-      <div className="w-full lg:w-1/2 bg-blue-900 p-8 flex items-center justify-center">
-        <Card className="w-full max-w-md p-8 shadow-lg">
+      <div className="w-full lg:w-1/2 bg-[#184285] p-8 flex items-center justify-center">
+        <Card className="w-full max-w-md p-8 shadow-lg bg-[#184285] border-none">
           <CardContent>
             <div className="flex justify-center mb-12">
               <Image
@@ -72,10 +72,11 @@ const LoginPage = () => {
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                className="bg-white"
               />
               <Button
-                className="w-full py-3.5 px-4 bg-green-500 text-white rounded-lg
-                          font-medium shadow-sm hover:bg-green-600
+                className="w-full py-3.5 px-4 bg-[#6CBE45] text-white rounded-lg
+                          font-medium shadow-sm hover:bg-[#6CBE45]
                           transition-colors duration-200"
                 onClick={handleLogin}
               >

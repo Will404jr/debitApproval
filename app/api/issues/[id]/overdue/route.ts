@@ -8,14 +8,14 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await context.params;
-
   try {
     await dbConnect();
-    const { assignedTo, status } = await request.json();
+
+    const { status } = await request.json();
 
     const updatedIssue = await Issue.findByIdAndUpdate(
       id,
-      { assignedTo, status },
+      { status },
       {
         new: true,
         runValidators: true,

@@ -6,11 +6,12 @@ import { getSession } from "@/lib/session";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  context: { params: Promise<{ id: string }> }
+): Promise<NextResponse> {
+  const { id } = await context.params;
   try {
     await dbConnect();
-    const id = params.id;
+
     const { status } = await request.json();
 
     const session = await getSession();

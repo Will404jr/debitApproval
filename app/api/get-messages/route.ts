@@ -32,5 +32,11 @@ export async function GET(req: Request) {
     ],
   }).sort({ timestamp: 1 });
 
+  // Mark messages as read
+  await Message.updateMany(
+    { senderId: otherUserId, recipientId: userId, read: false },
+    { $set: { read: true } }
+  );
+
   return NextResponse.json(messages);
 }

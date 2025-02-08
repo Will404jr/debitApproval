@@ -59,8 +59,8 @@ export function MDNavbar() {
   const isActive = (path: string) => pathname?.startsWith(path);
 
   return (
-    <nav className="border-none bg-[#0037B3] shadow-md">
-      <div className="container mx-auto px-4">
+    <nav className="border-none bg-[#184285]">
+      <div className="container mx-auto px-5">
         <div className="flex h-16 items-center">
           {/* Logo - Left */}
           <div className="w-1/4">
@@ -88,7 +88,7 @@ export function MDNavbar() {
                   hover:bg-white/10 
                   ${
                     isActive(item.href)
-                      ? "bg-green-500 font-medium shadow-sm"
+                      ? "bg-[#6CBE45] font-medium shadow-sm"
                       : ""
                   }
                 `}
