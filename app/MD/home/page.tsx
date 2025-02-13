@@ -340,8 +340,9 @@ export default function EnhancedIssuesTable() {
                 placeholder="Search users..."
                 value={userSearchQuery}
                 onValueChange={setUserSearchQuery}
+                className="border-none focus:ring-0"
               />
-              <CommandList>
+              <CommandList className="max-h-[300px] overflow-y-auto">
                 {filteredUsers.map((user) => (
                   <CommandItem
                     key={user.id}
@@ -350,12 +351,29 @@ export default function EnhancedIssuesTable() {
                         handleAssign(selectedIssue._id, user.username);
                       }
                     }}
+                    className="flex items-center px-4 py-3 cursor-pointer transition-colors hover:bg-gray-100 active:bg-gray-200 rounded-md group"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{user.username}</span>
-                      <span className="text-sm text-gray-500">
-                        {user.email} • {user.personnelType}
-                      </span>
+                    <div className="flex items-center space-x-3 w-full">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-sm">
+                            {user.username.slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600">
+                            {user.username}
+                          </p>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            {user.personnelType}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">
+                          {user.email}
+                        </p>
+                      </div>
                     </div>
                   </CommandItem>
                 ))}
