@@ -324,22 +324,6 @@ const ChatInterface = () => {
 
             <div className="p-4 border-t bg-gray-50">
               <div className="flex gap-2">
-                {/* <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => console.log("Add attachment")}
-                >
-                  <Plus className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => console.log("Add image")}
-                >
-                  <Image className="h-5 w-5" />
-                </Button> */}
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
