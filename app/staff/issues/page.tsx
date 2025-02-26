@@ -39,7 +39,7 @@ interface Issue {
   status: string;
   submittedBy: string;
   assignedTo: string | null;
-  dueDate: string;
+  approved: boolean;
   createdAt: string;
 }
 
@@ -61,7 +61,6 @@ const IssueTracker = () => {
     category: "",
     status: "Open",
     submittedBy: "",
-    dueDate: "",
     isUrgent: false,
     isAnonymous: false,
   });
@@ -99,7 +98,6 @@ const IssueTracker = () => {
         content: formData.content,
         status: formData.isUrgent ? "Urgent" : "Open",
         submittedBy: formData.isAnonymous ? "anonymous" : session?.username,
-        dueDate: formData.dueDate,
       };
 
       let response;
@@ -142,7 +140,6 @@ const IssueTracker = () => {
           category: "",
           status: "Open",
           submittedBy: "",
-          dueDate: "",
           isUrgent: false,
           isAnonymous: false,
         });
@@ -176,7 +173,6 @@ const IssueTracker = () => {
       category: issue.category,
       status: issue.status,
       submittedBy: issue.submittedBy,
-      dueDate: new Date(issue.dueDate).toISOString().split("T")[0],
       isUrgent: issue.status === "Urgent",
       isAnonymous: issue.submittedBy === "anonymous",
     });
@@ -212,9 +208,8 @@ const IssueTracker = () => {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Technical">Technical</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Environment">Environment</SelectItem>
+                  <SelectItem value="Personal">Personal</SelectItem>
+                  <SelectItem value="Official">Official</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -267,21 +262,6 @@ const IssueTracker = () => {
                 }
               />
             </div>
-            <div>
-              <Label htmlFor="dueDate">Due Date</Label>
-              <div className="flex items-center mt-1">
-                <Calendar className="w-4 h-4 mr-2 text-gray-500" />
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dueDate: e.target.value })
-                  }
-                  className="flex-1"
-                />
-              </div>
-            </div>
           </div>
         );
       case 4:
@@ -302,12 +282,12 @@ const IssueTracker = () => {
                     {formData.category || "(Not specified)"}
                   </p>
                 </div>
-                <div>
+                {/* <div>
                   <Label className="text-sm text-gray-500">Due Date</Label>
                   <p className="font-medium">
                     {formData.dueDate || "(Not specified)"}
                   </p>
-                </div>
+                </div> */}
                 <div>
                   <Label className="text-sm text-gray-500">Status</Label>
                   <p className="font-medium">
@@ -448,10 +428,6 @@ const IssueTracker = () => {
                             <div className="mt-4">
                               <p className="text-gray-700">{issue.content}</p>
                               <div className="mt-4 text-sm text-gray-500">
-                                <p>
-                                  Due Date:{" "}
-                                  {new Date(issue.dueDate).toLocaleDateString()}
-                                </p>
                                 <p>Status: {issue.status}</p>
                                 <p>Category: {issue.category}</p>
                                 <p>Submitted By: {issue.submittedBy}</p>

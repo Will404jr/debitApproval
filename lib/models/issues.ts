@@ -13,7 +13,8 @@ const issueSchema = new mongoose.Schema(
     },
     submittedBy: { type: String, required: true },
     assignedTo: { type: String, default: null },
-    dueDate: { type: Date, required: true },
+    approved: { type: Boolean, default: false },
+    reslvedComment: { type: String, default: null },
   },
   { timestamps: true }
 );

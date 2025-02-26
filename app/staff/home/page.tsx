@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -37,8 +38,10 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { MoreVertical, ClipboardList } from "lucide-react";
+import { MoreVertical, CheckSquare, Info } from "lucide-react";
 
 interface Issue {
   _id: string;
@@ -46,9 +49,10 @@ interface Issue {
   category: string;
   status: string;
   assignedTo: string;
-  dueDate: string;
   submittedBy: string;
   content: string;
+  approved: boolean;
+  reslvedComment: string | null;
   createdAt: string;
 }
 
@@ -59,6 +63,8 @@ export default function IssuesTable() {
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedIssue, setSelectedIssue] = React.useState<Issue | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [isResolveDialogOpen, setIsResolveDialogOpen] = React.useState(false);
+  const [resolveComment, setResolveComment] = React.useState("");
   const [session, setSession] = React.useState<any>(null);
   const itemsPerPage = 10;
 
@@ -74,7 +80,8 @@ export default function IssuesTable() {
           throw new Error("Failed to fetch");
         const issuesData = await issuesResponse.json();
         const sessionData = await sessionResponse.json();
-        setIssues(issuesData);
+        // Only show approved issues
+        setIssues(issuesData.filter((issue: Issue) => issue.approved));
         setSession(sessionData);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -107,15 +114,27 @@ export default function IssuesTable() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  // Handle opening the resolve dialog
+  const openResolveDialog = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setResolveComment("");
+    setIsResolveDialogOpen(true);
+  };
+
   // Handle resolving an issue
-  const handleResolve = async (issueId: string) => {
+  const handleResolve = async () => {
+    if (!selectedIssue) return;
+
     try {
-      const response = await fetch(`/api/issues/${issueId}/resolve`, {
+      const response = await fetch(`/api/issues/${selectedIssue._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ status: "Closed" }),
+        body: JSON.stringify({
+          status: "Closed",
+          reslvedComment: resolveComment,
+        }),
       });
 
       if (!response.ok) {
@@ -124,8 +143,12 @@ export default function IssuesTable() {
 
       const updatedIssue = await response.json();
       setIssues(
-        issues.map((issue) => (issue._id === issueId ? updatedIssue : issue))
+        issues.map((issue) =>
+          issue._id === selectedIssue._id ? updatedIssue : issue
+        )
       );
+
+      setIsResolveDialogOpen(false);
     } catch (error) {
       console.error("Error resolving issue:", error);
     }
@@ -163,7 +186,6 @@ export default function IssuesTable() {
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Assigned to</TableHead>
-              <TableHead>Due date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -190,7 +212,6 @@ export default function IssuesTable() {
                   </span>
                 </TableCell>
                 <TableCell>{issue.assignedTo || "Unassigned"}</TableCell>
-                <TableCell>{formatDate(issue.dueDate)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger>
@@ -203,14 +224,15 @@ export default function IssuesTable() {
                           setIsDialogOpen(true);
                         }}
                       >
-                        <ClipboardList className="mr-2 h-4 w-4" />
+                        <Info className="mr-2 h-4 w-4" />
                         Details
                       </DropdownMenuItem>
                       {session?.username === issue.assignedTo &&
                         issue.status !== "Closed" && (
                           <DropdownMenuItem
-                            onClick={() => handleResolve(issue._id)}
+                            onClick={() => openResolveDialog(issue)}
                           >
+                            <CheckSquare className="mr-2 h-4 w-4" />
                             Resolve
                           </DropdownMenuItem>
                         )}
@@ -222,6 +244,7 @@ export default function IssuesTable() {
           </TableBody>
         </Table>
 
+        {/* Issue Details Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -247,10 +270,6 @@ export default function IssuesTable() {
                     <p>{selectedIssue.assignedTo || "Unassigned"}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Due Date</h3>
-                    <p>{formatDate(selectedIssue.dueDate)}</p>
-                  </div>
-                  <div>
                     <h3 className="font-semibold">Created At</h3>
                     <p>{formatDate(selectedIssue.createdAt)}</p>
                   </div>
@@ -259,8 +278,44 @@ export default function IssuesTable() {
                   <h3 className="font-semibold">Content</h3>
                   <p className="mt-2">{selectedIssue.content}</p>
                 </div>
+                {selectedIssue.reslvedComment && (
+                  <div>
+                    <h3 className="font-semibold">Resolution Comment</h3>
+                    <p className="mt-2">{selectedIssue.reslvedComment}</p>
+                  </div>
+                )}
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Resolve Issue Dialog */}
+        <Dialog
+          open={isResolveDialogOpen}
+          onOpenChange={setIsResolveDialogOpen}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Resolve Issue</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p>Add a comment about how this issue was resolved:</p>
+              <Textarea
+                placeholder="Resolution details..."
+                value={resolveComment}
+                onChange={(e) => setResolveComment(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsResolveDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleResolve}>Resolve Issue</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandInput, CommandList, CommandItem } from "cmdk";
-import { MoreVertical, ClipboardList } from "lucide-react";
+import { MoreVertical, UserPlus, CheckCircle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { users } from "@/lib/user";
 
@@ -56,9 +56,10 @@ interface Issue {
   category: string;
   status: string;
   assignedTo: string | null;
-  dueDate: string;
   submittedBy: string;
   content: string;
+  approved: boolean;
+  reslvedComment: string | null;
   createdAt: string;
 }
 
@@ -66,6 +67,7 @@ export default function EnhancedIssuesTable() {
   const [issues, setIssues] = React.useState<Issue[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
+  const [approvedFilter, setApprovedFilter] = React.useState("all");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedIssue, setSelectedIssue] = React.useState<Issue | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -89,15 +91,27 @@ export default function EnhancedIssuesTable() {
   }, []);
 
   // Filter issues based on search query and status
-  const filteredIssues = issues.filter((issue) => {
-    const matchesSearch = issue.subject
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      issue.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  const filteredIssues = issues
+    .filter((issue) => {
+      const matchesSearch = issue.subject
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" ||
+        issue.status.toLowerCase() === statusFilter.toLowerCase();
+      const matchesApproval =
+        approvedFilter === "all" ||
+        (approvedFilter === "approved" && issue.approved) ||
+        (approvedFilter === "notApproved" && !issue.approved);
+      return matchesSearch && matchesStatus && matchesApproval;
+    })
+    .sort((a, b) => {
+      // Sort Urgent issues first
+      if (a.status === "Urgent" && b.status !== "Urgent") return -1;
+      if (a.status !== "Urgent" && b.status === "Urgent") return 1;
+      // For non-urgent issues, sort by creation date (newest first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   // Calculate metrics
   const totalIssues = issues.length;
@@ -143,6 +157,37 @@ export default function EnhancedIssuesTable() {
       setIsAssignDialogOpen(false);
     } catch (error) {
       console.error("Error assigning issue:", error);
+    }
+  };
+
+  const handleApprove = async (issueId: string) => {
+    try {
+      const response = await fetch(`/api/issues/${issueId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ approved: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to approve issue. Status: ${response.status}`);
+      }
+
+      const updatedIssue = await response.json();
+
+      setIssues(
+        issues.map((issue) =>
+          issue._id === issueId
+            ? {
+                ...issue,
+                approved: updatedIssue.approved,
+              }
+            : issue
+        )
+      );
+    } catch (error) {
+      console.error("Error approving issue:", error);
     }
   };
 
@@ -205,18 +250,34 @@ export default function EnhancedIssuesTable() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="max-w-sm"
           />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Open">Open</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Overdue">Overdue</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Open">Open</SelectItem>
+                <SelectItem value="Closed">Closed</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Overdue">Overdue</SelectItem>
+                <SelectItem value="Urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              defaultValue="all"
+              onValueChange={(value) => setApprovedFilter(value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by approval" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Issues</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="notApproved">Not Approved</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <Table>
@@ -226,13 +287,15 @@ export default function EnhancedIssuesTable() {
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Assigned to</TableHead>
-              <TableHead>Due date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedIssues.map((issue) => (
-              <TableRow key={issue._id}>
+              <TableRow
+                key={issue._id}
+                className={cn(issue.status === "Urgent" && "bg-red-50/50")}
+              >
                 <TableCell className="font-medium">{issue.subject}</TableCell>
                 <TableCell>{issue.category}</TableCell>
                 <TableCell>
@@ -246,6 +309,8 @@ export default function EnhancedIssuesTable() {
                         "bg-green-100 text-green-700":
                           issue.status === "Closed",
                         "bg-blue-100 text-blue-700": issue.status === "Open",
+                        "bg-red-100 text-red-700 animate-pulse":
+                          issue.status === "Urgent",
                       }
                     )}
                   >
@@ -253,7 +318,7 @@ export default function EnhancedIssuesTable() {
                   </span>
                 </TableCell>
                 <TableCell>{issue.assignedTo || "Unassigned"}</TableCell>
-                <TableCell>{formatDate(issue.dueDate)}</TableCell>
+
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger>
@@ -266,7 +331,7 @@ export default function EnhancedIssuesTable() {
                           setIsDialogOpen(true);
                         }}
                       >
-                        <ClipboardList className="mr-2 h-4 w-4" />
+                        <Info className="mr-2 h-4 w-4" />
                         Details
                       </DropdownMenuItem>
                       <DropdownMenuItem
@@ -275,8 +340,15 @@ export default function EnhancedIssuesTable() {
                           setIsAssignDialogOpen(true);
                         }}
                       >
-                        <ClipboardList className="mr-2 h-4 w-4" />
+                        <UserPlus className="mr-2 h-4 w-4" />
                         Assign
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleApprove(issue._id)}
+                        disabled={issue.approved}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {issue.approved ? "Approved" : "Approve"}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -312,18 +384,24 @@ export default function EnhancedIssuesTable() {
                     <p>{selectedIssue.assignedTo || "Unassigned"}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Due Date</h3>
-                    <p>{formatDate(selectedIssue.dueDate)}</p>
-                  </div>
-                  <div>
                     <h3 className="font-semibold">Created At</h3>
                     <p>{formatDate(selectedIssue.createdAt)}</p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Approved</h3>
+                    <p>{selectedIssue.approved ? "Yes" : "No"}</p>
                   </div>
                 </div>
                 <div>
                   <h3 className="font-semibold">Content</h3>
                   <p className="mt-2">{selectedIssue.content}</p>
                 </div>
+                {selectedIssue.reslvedComment && (
+                  <div>
+                    <h3 className="font-semibold">Resolution Comment</h3>
+                    <p className="mt-2">{selectedIssue.reslvedComment}</p>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
