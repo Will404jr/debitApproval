@@ -41,7 +41,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { MoreVertical, CheckSquare, Info } from "lucide-react";
+import { MoreVertical, CheckSquare, Info, Star } from "lucide-react";
+import MoodTracker from "@/components/rating";
 
 interface Issue {
   _id: string;
@@ -53,6 +54,7 @@ interface Issue {
   content: string;
   approved: boolean;
   reslvedComment: string | null;
+  rating: string | null;
   createdAt: string;
 }
 
@@ -67,6 +69,7 @@ export default function IssuesTable() {
   const [resolveComment, setResolveComment] = React.useState("");
   const [session, setSession] = React.useState<any>(null);
   const itemsPerPage = 10;
+  const [isRatingDialogOpen, setIsRatingDialogOpen] = React.useState(false);
 
   // Fetch issues and session
   React.useEffect(() => {
@@ -154,6 +157,37 @@ export default function IssuesTable() {
     }
   };
 
+  const handleRatingSubmit = async (rating: string) => {
+    if (!selectedIssue) return;
+
+    try {
+      const response = await fetch(`/api/issues/${selectedIssue._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rating: rating.charAt(0).toUpperCase() + rating.slice(1), // Capitalize first letter
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit rating");
+      }
+
+      const updatedIssue = await response.json();
+      setIssues(
+        issues.map((issue) =>
+          issue._id === selectedIssue._id ? updatedIssue : issue
+        )
+      );
+
+      setIsRatingDialogOpen(false);
+    } catch (error) {
+      console.error("Error submitting rating:", error);
+    }
+  };
+
   return (
     <main className="container mx-auto px-4 py-8 w-[90%]">
       <div className="w-full space-y-4 bg-white p-6 rounded-lg shadow-lg">
@@ -236,6 +270,19 @@ export default function IssuesTable() {
                             Resolve
                           </DropdownMenuItem>
                         )}
+                      {session?.username === issue.submittedBy &&
+                        issue.status === "Closed" &&
+                        !issue.rating && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedIssue(issue);
+                              setIsRatingDialogOpen(true);
+                            }}
+                          >
+                            <Star className="mr-2 h-4 w-4" />
+                            Rate
+                          </DropdownMenuItem>
+                        )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -284,6 +331,12 @@ export default function IssuesTable() {
                     <p className="mt-2">{selectedIssue.reslvedComment}</p>
                   </div>
                 )}
+                {selectedIssue.rating && (
+                  <div>
+                    <h3 className="font-semibold">Rating</h3>
+                    <p className="mt-2">{selectedIssue.rating}</p>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
@@ -316,6 +369,16 @@ export default function IssuesTable() {
               </Button>
               <Button onClick={handleResolve}>Resolve Issue</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rating Dialog */}
+        <Dialog open={isRatingDialogOpen} onOpenChange={setIsRatingDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Rate Resolution</DialogTitle>
+            </DialogHeader>
+            <MoodTracker onRatingSelect={handleRatingSubmit} />
           </DialogContent>
         </Dialog>
 

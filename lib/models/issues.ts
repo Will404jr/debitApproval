@@ -15,6 +15,12 @@ const issueSchema = new mongoose.Schema(
     assignedTo: { type: String, default: null },
     approved: { type: Boolean, default: false },
     reslvedComment: { type: String, default: null },
+    rating: {
+      type: String,
+      enum: ["Good", "Fair", "Bad"],
+      default: null,
+      required: false,
+    },
   },
   { timestamps: true }
 );
