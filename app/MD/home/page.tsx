@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/pagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandInput, CommandList, CommandItem } from "cmdk";
-import { MoreVertical, UserPlus, CheckCircle, Info } from "lucide-react";
+import { MoreVertical, UserPlus, CheckCircle, Info, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { users } from "@/lib/user";
 
@@ -61,6 +61,7 @@ interface Issue {
   approved: boolean;
   reslvedComment: string | null;
   createdAt: string;
+  rating: string | null;
 }
 
 export default function EnhancedIssuesTable() {
@@ -360,46 +361,108 @@ export default function EnhancedIssuesTable() {
 
         {/* Issue Details Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>{selectedIssue?.subject}</DialogTitle>
+              <DialogTitle className="text-xl font-bold pb-2 border-b">
+                {selectedIssue?.subject}
+              </DialogTitle>
             </DialogHeader>
             {selectedIssue && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center justify-between gap-4">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-3 py-1 text-sm font-medium",
+                      {
+                        "bg-yellow-100 text-yellow-700":
+                          selectedIssue.status === "Pending",
+                        "bg-red-100 text-red-700":
+                          selectedIssue.status === "Overdue",
+                        "bg-green-100 text-green-700":
+                          selectedIssue.status === "Closed",
+                        "bg-blue-100 text-blue-700":
+                          selectedIssue.status === "Open",
+                      }
+                    )}
+                  >
+                    {selectedIssue.status}
+                  </span>
+                  <p className="text-sm text-gray-500">
+                    Created on {formatDate(selectedIssue.createdAt)}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6 bg-gray-50 p-4 rounded-lg">
                   <div>
-                    <h3 className="font-semibold">Category</h3>
-                    <p>{selectedIssue.category}</p>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Category
+                    </h3>
+                    <p className="font-medium">{selectedIssue.category}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Status</h3>
-                    <p>{selectedIssue.status}</p>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Submitted By
+                    </h3>
+                    <p className="font-medium">{selectedIssue.submittedBy}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Submitted By</h3>
-                    <p>{selectedIssue.submittedBy}</p>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Assigned To
+                    </h3>
+                    <p className="font-medium">
+                      {selectedIssue.assignedTo || "Unassigned"}
+                    </p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Assigned To</h3>
-                    <p>{selectedIssue.assignedTo || "Unassigned"}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Created At</h3>
-                    <p>{formatDate(selectedIssue.createdAt)}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Approved</h3>
-                    <p>{selectedIssue.approved ? "Yes" : "No"}</p>
+                    <h3 className="text-sm font-medium text-gray-500 mb-1">
+                      Approved
+                    </h3>
+                    <p className="font-medium">
+                      {selectedIssue.approved ? "Yes" : "No"}
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Content</h3>
-                  <p className="mt-2">{selectedIssue.content}</p>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium text-gray-500 mb-2">
+                    Description
+                  </h3>
+                  <div className="bg-white p-4 border rounded-lg whitespace-pre-wrap">
+                    {selectedIssue.content}
+                  </div>
                 </div>
+
                 {selectedIssue.reslvedComment && (
-                  <div>
-                    <h3 className="font-semibold">Resolution Comment</h3>
-                    <p className="mt-2">{selectedIssue.reslvedComment}</p>
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">
+                      Resolution Comment
+                    </h3>
+                    <div className="bg-green-50 p-4 border-l-4 border-green-400 rounded-r-lg whitespace-pre-wrap">
+                      {selectedIssue.reslvedComment}
+                    </div>
+                  </div>
+                )}
+
+                {selectedIssue.rating && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-medium text-gray-500 mb-2">
+                      Feedback Rating
+                    </h3>
+                    <div className="flex items-center">
+                      <Star
+                        className={cn(
+                          "h-6 w-6 mr-2",
+                          selectedIssue.rating === "Good"
+                            ? "fill-yellow-400 text-yellow-400"
+                            : selectedIssue.rating === "Fair"
+                            ? "fill-blue-400 text-blue-400"
+                            : "fill-red-400 text-red-400"
+                        )}
+                      />
+                      <span className="font-medium">
+                        {selectedIssue.rating}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
