@@ -337,14 +337,14 @@ export default function IssuesTable() {
                     </h3>
                     <p className="font-medium">{selectedIssue.submittedBy}</p>
                   </div>
-                  <div>
+                  {/* <div>
                     <h3 className="text-sm font-medium text-gray-500 mb-1">
                       Assigned To
                     </h3>
                     <p className="font-medium">
                       {selectedIssue.assignedTo || "Unassigned"}
                     </p>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="border-t pt-4">
