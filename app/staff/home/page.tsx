@@ -94,15 +94,23 @@ export default function IssuesTable() {
   }, []);
 
   // Filter issues based on search query and status
-  const filteredIssues = issues.filter((issue) => {
-    const matchesSearch = issue.subject
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" ||
-      issue.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  const filteredIssues = issues
+    .filter((issue) => {
+      const matchesSearch = issue.subject
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" ||
+        issue.status.toLowerCase() === statusFilter.toLowerCase();
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Sort Urgent issues first
+      if (a.status === "Urgent" && b.status !== "Urgent") return -1;
+      if (a.status !== "Urgent" && b.status === "Urgent") return 1;
+      // For non-urgent issues, sort by creation date (newest first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredIssues.length / itemsPerPage);
@@ -209,6 +217,7 @@ export default function IssuesTable() {
               <SelectItem value="Closed">Closed</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Overdue">Overdue</SelectItem>
+              <SelectItem value="Urgent">Urgent</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -235,10 +244,13 @@ export default function IssuesTable() {
                       {
                         "bg-yellow-100 text-yellow-700":
                           issue.status === "Pending",
-                        "bg-red-100 text-red-700": issue.status === "Overdue",
+                        "bg-red-100 text-red-700":
+                          issue.status === "Overdue" ||
+                          issue.status === "Urgent",
                         "bg-green-100 text-green-700":
                           issue.status === "Closed",
                         "bg-blue-100 text-blue-700": issue.status === "Open",
+                        "animate-pulse": issue.status === "Urgent",
                       }
                     )}
                   >
@@ -309,7 +321,8 @@ export default function IssuesTable() {
                         "bg-yellow-100 text-yellow-700":
                           selectedIssue.status === "Pending",
                         "bg-red-100 text-red-700":
-                          selectedIssue.status === "Overdue",
+                          selectedIssue.status === "Overdue" ||
+                          selectedIssue.status === "Urgent",
                         "bg-green-100 text-green-700":
                           selectedIssue.status === "Closed",
                         "bg-blue-100 text-blue-700":
@@ -419,7 +432,9 @@ export default function IssuesTable() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleResolve}>Resolve Issue</Button>
+              <Button className="bg-[#1d4ed8]" onClick={handleResolve}>
+                Resolve Issue
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -1,16 +1,18 @@
-import React from "react";
+import type React from "react";
 
 export default function Background({
   children,
+  imageUrl = "/imgs/nssf.jpg",
 }: {
   children: React.ReactNode;
+  imageUrl?: string;
 }) {
   return (
     <div className="min-h-screen relative">
-      <div className="absolute inset-0">
-        <div className="h-1/4 bg-[#13263c]" />
-        <div className="h-3/4 bg-[#13263c]" />
-      </div>
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${imageUrl})` }}
+      />
       <div className="relative z-10">{children}</div>
     </div>
   );

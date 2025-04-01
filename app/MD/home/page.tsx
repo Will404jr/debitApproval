@@ -42,6 +42,9 @@ import { Command, CommandInput, CommandList, CommandItem } from "cmdk";
 import { MoreVertical, UserPlus, CheckCircle, Info, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { users } from "@/lib/user";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { DialogFooter } from "@/components/ui/dialog";
 
 interface User {
   id: string;
@@ -75,20 +78,29 @@ export default function EnhancedIssuesTable() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = React.useState(false);
   const [userSearchQuery, setUserSearchQuery] = React.useState("");
   const itemsPerPage = 10;
+  const [isResolveDialogOpen, setIsResolveDialogOpen] = React.useState(false);
+  const [resolveComment, setResolveComment] = React.useState("");
+  const [session, setSession] = React.useState<any>(null);
 
-  // Fetch issues
+  // Fetch issues and session
   React.useEffect(() => {
-    const fetchIssues = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/issues");
-        if (!response.ok) throw new Error("Failed to fetch");
-        const data = await response.json();
+        const [issuesResponse, sessionResponse] = await Promise.all([
+          fetch("/api/issues"),
+          fetch("/api/session"),
+        ]);
+        if (!issuesResponse.ok || !sessionResponse.ok)
+          throw new Error("Failed to fetch");
+        const data = await issuesResponse.json();
+        const sessionData = await sessionResponse.json();
         setIssues(data);
+        setSession(sessionData);
       } catch (error) {
         console.error("Error fetching issues:", error);
       }
     };
-    fetchIssues();
+    fetchData();
   }, []);
 
   // Filter issues based on search query and status
@@ -203,6 +215,46 @@ export default function EnhancedIssuesTable() {
   // Format date for display
   const formatDate = (dateString: string | number | Date) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Handle opening the resolve dialog
+  const openResolveDialog = (issue: Issue) => {
+    setSelectedIssue(issue);
+    setResolveComment("");
+    setIsResolveDialogOpen(true);
+  };
+
+  // Handle resolving an issue
+  const handleResolve = async () => {
+    if (!selectedIssue) return;
+
+    try {
+      const response = await fetch(`/api/issues/${selectedIssue._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: "Closed",
+          reslvedComment: resolveComment,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to resolve issue");
+      }
+
+      const updatedIssue = await response.json();
+      setIssues(
+        issues.map((issue) =>
+          issue._id === selectedIssue._id ? updatedIssue : issue
+        )
+      );
+
+      setIsResolveDialogOpen(false);
+    } catch (error) {
+      console.error("Error resolving issue:", error);
+    }
   };
 
   return (
@@ -351,6 +403,15 @@ export default function EnhancedIssuesTable() {
                         <CheckCircle className="mr-2 h-4 w-4" />
                         {issue.approved ? "Approved" : "Approve"}
                       </DropdownMenuItem>
+                      {session?.username === issue.assignedTo &&
+                        issue.status !== "Closed" && (
+                          <DropdownMenuItem
+                            onClick={() => openResolveDialog(issue)}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Resolve
+                          </DropdownMenuItem>
+                        )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -520,6 +581,36 @@ export default function EnhancedIssuesTable() {
                 ))}
               </CommandList>
             </Command>
+          </DialogContent>
+        </Dialog>
+
+        {/* Resolve Issue Dialog */}
+        <Dialog
+          open={isResolveDialogOpen}
+          onOpenChange={setIsResolveDialogOpen}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Resolve Issue</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p>Add a comment about how this issue was resolved:</p>
+              <Textarea
+                placeholder="Resolution details..."
+                value={resolveComment}
+                onChange={(e) => setResolveComment(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsResolveDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleResolve}>Resolve Issue</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
