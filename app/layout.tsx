@@ -1,27 +1,27 @@
-import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
-import Background from "@/components/layout/background";
 
-const manrope = Manrope({
-  subsets: ["latin"],
-  variable: "--font-manrope",
+// Load Bahnschrift font
+const bahnschrift = localFont({
+  src: "../fonts/bahnschrift.ttf", // Path relative to app directory
+  display: "swap",
+  variable: "--font-bahnschrift",
 });
 
-export const metadata: Metadata = {
-  title: "Ask your MD",
-  description: "",
+export const metadata = {
+  title: "Debit Approval System",
+  description: "Management system for debit approvals",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body className={`${manrope.variable} font-sans`}>
-        <Background>{children}</Background>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${bahnschrift.variable} font-bahnschrift text-lg`}>
+        {children}
       </body>
     </html>
   );

@@ -2,11 +2,8 @@ import { getIronSession } from "iron-session";
 import { cookies } from "next/headers";
 
 export interface SessionData {
-  id?: string;
   isLoggedIn: boolean;
-  username?: string;
   email?: string;
-  personnelType?: string;
   expiresAt?: number; // Add expiration time
   destroy: () => Promise<void>;
   save: () => Promise<void>;
