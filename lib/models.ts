@@ -54,3 +54,27 @@ const debitDataSchema = new mongoose.Schema(
 
 export const DebitData =
   mongoose.models.DebitData || mongoose.model("DebitData", debitDataSchema);
+
+// OTP schema
+const otpSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true },
+    userType: { type: String, enum: ["user", "admin"], required: true },
+    otp: { type: String, required: true },
+    expiresAt: {
+      type: Date,
+      required: true,
+      default: () => new Date(Date.now() + 5 * 60 * 1000),
+    }, // 5 minutes from now
+    isUsed: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
+// Create a TTL index that automatically deletes documents after they expire
+otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Create a compound index for faster lookups
+otpSchema.index({ email: 1, userType: 1 });
+
+export const OTP = mongoose.models.OTP || mongoose.model("OTP", otpSchema);

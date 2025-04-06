@@ -1,17 +1,18 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, CreditCard, LogOut } from "lucide-react";
+import { CheckCircle2, CreditCard, LogOut } from "lucide-react";
 import toast from "react-hot-toast";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -40,11 +41,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -52,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Background from "@/components/bg";
 
 // Define interfaces for data
@@ -60,11 +57,19 @@ interface UserType {
   firstName: string;
   lastName: string;
   email: string;
+  phoneNumber: string;
 }
 
 interface Bank {
   _id: string;
   name: string;
+}
+
+interface SessionData {
+  isLoggedIn: boolean;
+  email: string;
+  userType: string;
+  expiresAt: number;
 }
 
 // Define form schema
@@ -87,13 +92,10 @@ export default function DebitApprovalForm() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Mock user data - in a real app, this would come from authentication
-  const user = {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: "/placeholder.svg?height=40&width=40",
-  };
+  const [userData, setUserData] = useState<UserType | null>(null);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   // Initialize form
   const form = useForm<z.infer<typeof formSchema>>({
@@ -108,6 +110,50 @@ export default function DebitApprovalForm() {
       justification: "",
     },
   });
+
+  // Define fetchUserData function before using it
+  const fetchUserData = async (email: string) => {
+    try {
+      // First try to find existing user
+      const response = await fetch(
+        `/api/user/by-email?email=${encodeURIComponent(email)}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserData(data);
+
+        // Update form with user data
+        form.setValue("firstName", data.firstName);
+        form.setValue("lastName", data.lastName);
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      // Don't show error toast as the user might not exist yet
+    }
+  };
+
+  // Fetch session data
+  useEffect(() => {
+    const fetchSessionData = async () => {
+      try {
+        const response = await fetch("/api/session");
+        if (!response.ok) throw new Error("Failed to fetch session data");
+        const data = await response.json();
+        setSessionData(data);
+
+        // If we have an email in the session, fetch user details
+        if (data.email) {
+          fetchUserData(data.email);
+        }
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        toast.error("Failed to load session data");
+      }
+    };
+
+    fetchSessionData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch banks
   useEffect(() => {
@@ -129,31 +175,24 @@ export default function DebitApprovalForm() {
     fetchBanks();
   }, []);
 
-  // Handle form submission
+  // Handle form submission - UPDATED to use existing user
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Check if we have user data
+    if (!userData || !userData._id) {
+      toast.error(
+        "User information not available. Please try logging in again."
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
-      // First, create or find the user
-      const userResponse = await fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: values.firstName,
-          lastName: values.lastName,
-          email: user.email, // Using the logged-in user's email
-          phoneNumber: "N/A", // This would need to be added to the form if required
-        }),
-      });
-
-      if (!userResponse.ok) throw new Error("Failed to create user");
-      const userData = await userResponse.json();
-
-      // Then create the debit data
+      // Create the debit data using the existing user ID
       const debitResponse = await fetch("/api/debit-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user: userData._id,
+          user: userData._id, // Use the existing user ID
           bank: values.bank,
           transactionDate: values.transactionDate.toISOString(),
           nssfReferenceNumber: values.nssfReferenceNumber,
@@ -164,20 +203,30 @@ export default function DebitApprovalForm() {
 
       if (!debitResponse.ok) throw new Error("Failed to submit debit approval");
 
-      toast.success("Debit approval submitted successfully");
+      // Show success dialog instead of toast
+      setShowSuccessDialog(true);
+
       // Reset form
       form.reset();
 
-      // Redirect to dashboard after successful submission
+      // Close dialog and refresh page after 3 seconds
       setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
+        setShowSuccessDialog(false);
+        window.location.reload();
+      }, 3000);
     } catch (error) {
       console.error("Error submitting form:", error);
       toast.error("Failed to submit debit approval");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Handle date change for the custom date picker
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const date = new Date(e.target.value);
+    setSelectedDate(date);
+    form.setValue("transactionDate", date);
   };
 
   // Handle logout
@@ -188,10 +237,15 @@ export default function DebitApprovalForm() {
       });
 
       if (response.ok) {
+        toast.success("Logged out successfully");
+        // Redirect to login page
         router.push("/");
+      } else {
+        throw new Error("Logout failed");
       }
     } catch (error) {
-      console.error("Failed to logout:", error);
+      console.error("Logout error:", error);
+      toast.error("Failed to logout");
     }
   };
 
@@ -199,7 +253,7 @@ export default function DebitApprovalForm() {
     <Background>
       <div className="min-h-screen">
         {/* Navbar */}
-        <nav className=" text-white ">
+        <nav className="text-white">
           <div className="container mx-auto px-4 py-3 flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <CreditCard className="h-6 w-6" />
@@ -213,12 +267,14 @@ export default function DebitApprovalForm() {
                   className="relative h-10 w-10 rounded-full"
                 >
                   <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage
+                      src="/placeholder.svg?height=40&width=40"
+                      alt={userData?.firstName || "User"}
+                    />
                     <AvatarFallback className="bg-primary text-primary-foreground">
-                      {user.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
+                      {userData
+                        ? `${userData.firstName[0]}${userData.lastName[0]}`
+                        : "U"}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -228,9 +284,13 @@ export default function DebitApprovalForm() {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem className="flex flex-col items-start">
-                    <span className="font-medium">{user.name}</span>
+                    <span className="font-medium">
+                      {userData
+                        ? `${userData.firstName} ${userData.lastName}`
+                        : "User"}
+                    </span>
                     <span className="text-xs text-muted-foreground">
-                      {user.email}
+                      {sessionData?.email || ""}
                     </span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -331,42 +391,19 @@ export default function DebitApprovalForm() {
                           render={({ field }) => (
                             <FormItem className="flex flex-col pt-3">
                               <FormLabel>Transaction Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={`w-full pl-3 text-left font-normal bg-white ${
-                                        !field.value
-                                          ? "text-muted-foreground"
-                                          : ""
-                                      }`}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                      date > new Date() ||
-                                      date < new Date("1900-01-01")
-                                    }
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
+                              <FormControl>
+                                {/* Simple HTML date input instead of shadcn calendar */}
+                                <Input
+                                  type="date"
+                                  value={
+                                    field.value
+                                      ? format(field.value, "yyyy-MM-dd")
+                                      : ""
+                                  }
+                                  onChange={handleDateChange}
+                                  className="w-full"
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -491,6 +528,26 @@ export default function DebitApprovalForm() {
             </Card>
           </div>
         </main>
+
+        {/* Success Dialog */}
+        <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+          <DialogContent className="sm:max-w-md flex flex-col items-center justify-center p-6 text-white">
+            <div className="animate-bounce mb-4">
+              <CheckCircle2 className="h-16 w-16 text-green-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-center mb-2">Success!</h2>
+            <p className="text-center text-white mb-4">
+              Your debit approval has been submitted successfully.
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div
+                className="bg-green-500 h-2 rounded-full animate-[progress_3s_ease-in-out]"
+                style={{ width: "100%" }}
+              ></div>
+            </div>
+            <p className="text-sm text-gray-500">Refreshing page...</p>
+          </DialogContent>
+        </Dialog>
       </div>
     </Background>
   );

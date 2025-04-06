@@ -1,6 +1,7 @@
 "use client";
 
 import type * as React from "react";
+import { useState, useEffect } from "react";
 import {
   Command,
   LayoutDashboard,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-
+import toast from "react-hot-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+
+interface SessionData {
+  isLoggedIn: boolean;
+  email: string;
+  userType: string;
+  expiresAt: number;
+}
 
 const menuItems = [
   {
@@ -57,6 +65,24 @@ const menuItems = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+
+  // Fetch session data
+  useEffect(() => {
+    const fetchSessionData = async () => {
+      try {
+        const response = await fetch("/api/session");
+        if (!response.ok) throw new Error("Failed to fetch session data");
+        const data = await response.json();
+        setSessionData(data);
+      } catch (error) {
+        console.error("Error fetching session:", error);
+        toast.error("Failed to load session data");
+      }
+    };
+
+    fetchSessionData();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -122,11 +148,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 alt="User"
               />
               <AvatarFallback className="bg-white text-black">
-                UA
+                <Users className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">admin@example.com</span>
+              <span className="text-sm font-medium">{sessionData?.email}</span>
               <span className="text-xs opacity-70">Administrator</span>
             </div>
           </div>
