@@ -1,4 +1,5 @@
 {
+  "types": ["aria-query"],
   "compilerOptions": {
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
