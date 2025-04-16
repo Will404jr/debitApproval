@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = "mongodb://172.21.240.1:27017/Debitapprovaldb";
+const MONGODB_URI = "mongodb://localhost:27017/Debitapprovaldb";
 // const MONGODB_URI =
 //   "mongodb+srv://Junior:test01@cluster0.46lb860.mongodb.net/Debitapprovaldb?retryWrites=true&w=majority";
 

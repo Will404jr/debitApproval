@@ -71,7 +71,17 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to send OTP");
+        // Specifically handle 404 errors for user/admin not found
+        if (response.status === 404) {
+          toast.error(
+            `${activeTab === "admin" ? "Admin" : "User"} email not found`
+          );
+          // Return early without throwing an error
+          return;
+        } else {
+          toast.error(data.error || "Failed to send OTP");
+          throw new Error(data.error || "Failed to send OTP");
+        }
       }
 
       setEmail(values.email);
@@ -82,9 +92,12 @@ export default function LoginPage() {
       toast.success("OTP sent to your email");
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to send OTP"
-      );
+      // Don't show toast here for 404 errors as we already handled them above
+      if (!(error instanceof Error && error.message.includes("not found"))) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to send OTP"
+        );
+      }
     } finally {
       setIsLoading(false);
     }
