@@ -16,7 +16,7 @@ const sessionOptions = {
   cookieName: "auth-session",
   cookieOptions: {
     secure: process.env.NODE_ENV === "production",
-    httpOnly: true,
+    httpOnly: false,
     maxAge: 24 * 60 * 60, // 24 hours in seconds
   },
 };
