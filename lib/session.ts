@@ -15,8 +15,8 @@ const sessionOptions = {
     "complex_password_at_least_32_characters_long",
   cookieName: "auth-session",
   cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    httpOnly: false,
+    secure: false,
+    httpOnly: true,
     maxAge: 24 * 60 * 60, // 24 hours in seconds
   },
 };
