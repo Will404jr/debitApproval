@@ -4,7 +4,6 @@ import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   host: "192.168.192.160",
   port: 25,
-  secure: false,
 });
 
 // Send OTP email
