@@ -1,10 +1,14 @@
 import nodemailer from "nodemailer";
 
-// Create a transporter
+// Create a transporter with TLS verification disabled
 const transporter = nodemailer.createTransport({
   host: "192.168.192.160",
   port: 25,
   secure: false,
+  tls: {
+    // Do not fail on invalid certificates
+    rejectUnauthorized: false,
+  },
 });
 
 // Send OTP email
