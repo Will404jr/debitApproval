@@ -9,7 +9,7 @@ const transporter = nodemailer.createTransport({
 // Send OTP email
 export async function sendOTPEmail(email: string, otp: string): Promise<void> {
   const mailOptions = {
-    from: "debitapproval@nssfug.org",
+    from: "<debitapproval@nssfug.org>",
     to: email,
     subject: "Your Login OTP",
     text: `Your one-time password is: ${otp}. It will expire in 5 minutes.`,
