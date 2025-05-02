@@ -2,19 +2,15 @@ import nodemailer from "nodemailer";
 
 // Create a transporter
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
+  host: "192.168.192.160",
+  port: 25,
   secure: false,
-  auth: {
-    user: "wjr46269@gmail.com",
-    pass: "sqdqsloslcftavja",
-  },
 });
 
 // Send OTP email
 export async function sendOTPEmail(email: string, otp: string): Promise<void> {
   const mailOptions = {
-    from: '"Debit Approval System" <wjr46269@gmail.com>',
+    from: "debitapproval@nssfug.org",
     to: email,
     subject: "Your Login OTP",
     text: `Your one-time password is: ${otp}. It will expire in 5 minutes.`,
