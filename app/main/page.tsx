@@ -13,14 +13,7 @@ import toast from "react-hot-toast";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -202,6 +195,68 @@ export default function DebitApprovalForm() {
       });
 
       if (!debitResponse.ok) throw new Error("Failed to submit debit approval");
+
+      // Also send data to external endpoint
+      try {
+        // Get bank name for the description
+        const bankResponse = await fetch(`/api/bank/${values.bank}`);
+        let bankName = "Selected Bank";
+        if (bankResponse.ok) {
+          const bankData = await bankResponse.json();
+          bankName = bankData.name;
+        }
+
+        // Format description with all form fields
+        const description = `
+    User: ${userData.firstName} ${userData.lastName}
+    Email: ${userData.email}
+    Phone: ${userData.phoneNumber}
+    Bank: ${bankName}
+    Transaction Date: ${format(values.transactionDate, "dd/MM/yyyy")}
+    NSSF Reference Number: ${values.nssfReferenceNumber}
+    Amount: UGX ${values.amount}
+    Justification: ${values.justification}
+  `;
+
+        // Prepare data for external API
+        const externalData = {
+          input_data: JSON.stringify({
+            request: {
+              subject: "Debit Approval Issues",
+              description: description,
+              requester: { id: "009", name: "administrator" },
+              status: { name: "Open" },
+            },
+          }),
+        };
+
+        // Convert to URL encoded form data
+        const formData = new URLSearchParams(externalData);
+
+        // Send to external API
+        const externalResponse = await fetch(
+          "https://techassist.nssfug.org/api/v3/requests?PORTALID=901&TECHNICIAN_KEY=2207AA71-A318-44C5-BA75-2041F2D67688&format=json",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: formData,
+          }
+        );
+
+        if (!externalResponse.ok) {
+          console.warn(
+            "External API request failed, but continuing with form submission"
+          );
+        } else {
+          console.log("Successfully sent data to external API");
+        }
+      } catch (error) {
+        console.error("Error sending to external API:", error);
+        // Don't fail the whole submission if external API fails
+        toast.error("Form submitted but external notification failed");
+      }
 
       // Show success dialog instead of toast
       setShowSuccessDialog(true);
